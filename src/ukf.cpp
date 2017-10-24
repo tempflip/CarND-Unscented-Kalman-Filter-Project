@@ -66,6 +66,94 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+
+  if (is_initialized_ != true) {
+
+    cout << "INITING" << endl;
+    lastTimestamp = meas_package.timestamp_;
+    is_initialized_ = true;
+
+    Init(meas_package);
+
+  } else {
+
+    ////////////////////
+    ////////////////////
+    ////////////////////
+    ////////////////////    
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER) { return; }
+    ////////////////////
+    ////////////////////
+    ////////////////////
+    ////////////////////
+
+
+
+    float dt = (meas_package.timestamp_ - lastTimestamp) /1000000.;
+    lastTimestamp = meas_package.timestamp_;
+    cout << "#### dt " << dt << endl;
+
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+    //cout << "R :::::::::::: " << meas_package.raw_measurements_ << endl;
+    Predict_State_Sigma_Points();
+
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    cout << "L :::::::::::: " << meas_package.raw_measurements_ << endl;
+
+
+
+    x_(0) = meas_package.raw_measurements_(0);
+    x_(1) = meas_package.raw_measurements_(1);
+  }
+  }
+
+  cout << "-------------------------------------------------" << endl;
+}
+
+
+void UKF::Init(MeasurementPackage meas_package) {
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
+  
+  if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    x_ << meas_package.raw_measurements_(0), meas_package.raw_measurements_(1), 0, 0, 0;
+    cout << "IM INITED!!!!!" << endl;
+  }
+
+  n_x_ = 5;
+  lambda_ =  3 - n_x_;
+
+
+}
+
+
+void UKF::Predict_State_Sigma_Points() {
+  Xsig_pred_ = Predict_Sigma_Points(n_x_, P_, x_);
+  cout << "Sigmas OK" << Xsig_pred_ << endl;
+
+}
+
+MatrixXd UKF::Predict_Sigma_Points(int dim, MatrixXd P, VectorXd x) {
+
+  //create sigma point matrix
+  MatrixXd sigmas = MatrixXd(dim, 2 * dim + 1);
+
+  
+  MatrixXd A = P.llt().matrixL();
+
+  //set first column of sigma point matrix
+  sigmas.col(0) = x;
+  
+  //set remaining sigma points
+  for (int i = 0; i < dim; i++) {
+    sigmas.col(i + 1)     = x + sqrt(lambda_ + dim) * A.col(i);
+    sigmas.col(i + 1 + dim) = x - sqrt(lambda_ +dim) * A.col(i);
+  }
+  
+  return sigmas;
 }
 
 /**
@@ -111,3 +199,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   You'll also need to calculate the radar NIS.
   */
 }
+
+
+

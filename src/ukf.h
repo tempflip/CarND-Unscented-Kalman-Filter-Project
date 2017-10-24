@@ -13,6 +13,8 @@ using Eigen::VectorXd;
 class UKF {
 public:
 
+  long lastTimestamp;
+
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -102,6 +104,12 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+  void Init(MeasurementPackage meas_package);
+
+  MatrixXd Predict_Sigma_Points(int dim, MatrixXd P, VectorXd x);
+
+  void Predict_State_Sigma_Points();
 };
 
 #endif /* UKF_H */
