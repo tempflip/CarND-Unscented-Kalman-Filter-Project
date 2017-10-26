@@ -69,6 +69,8 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  MatrixXd aug_sigmas_;
+
 
   /**
    * Constructor
@@ -107,9 +109,15 @@ public:
 
   void Init(MeasurementPackage meas_package);
 
-  MatrixXd Predict_Sigma_Points(int dim, MatrixXd P, VectorXd x);
+  MatrixXd Generate_Sigma_Points(int dim, MatrixXd P, VectorXd x);
 
   void Predict_State_Sigma_Points();
+
+  void Predict_Augmented_Sigma_Points();
+
+  void Predict_New_Sigma_Points(float delta_t);
+
+  void Predict_P();
 };
 
 #endif /* UKF_H */
