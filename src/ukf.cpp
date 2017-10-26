@@ -3,7 +3,7 @@
 #include "Eigen/Dense"
 #include <iostream>
 
-#define EPS 0.001 // Just a small number
+#define EPS 0.001
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -61,78 +61,64 @@ UKF::UKF() {
 
 UKF::~UKF() {}
 
-/**
- *  Angle normalization to [-Pi, Pi]
- */
-void UKF::NormAng(double *ang) {
-    while (*ang > M_PI) *ang -= 2. * M_PI;
-    while (*ang < -M_PI) *ang += 2. * M_PI;
-}
 
-/**
- * @param {MeasurementPackage} meas_package The latest measurement data of
- * either radar or laser.
- */
-void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
-  // CTRV Model, x_ is [px, py, vel, ang, ang_rate]
-  if (!is_initialized_) {
-  // Initial covariance matrix
-    P_ << 1, 0, 0, 0, 0,
-          0, 1, 0, 0, 0,
-          0, 0, 1, 0, 0,
-          0, 0, 0, 1, 0,
-          0, 0, 0, 0, 1;
-    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-      // Convert radar from polar to cartesian coordinates and initialize state.
-      float rho = measurement_pack.raw_measurements_[0]; // range
-      float phi = measurement_pack.raw_measurements_[1]; // bearing
-      float rho_dot = measurement_pack.raw_measurements_[2]; // velocity of rho
-      // Coordinates convertion from polar to cartesian
+void UKF::Init(MeasurementPackage meas_package) {
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
+
+  weights_(0) = lambda_ / (lambda_ + n_aug_);
+  for (int i = 1; i < weights_.size(); i++) {
+        weights_(i) = 0.5 / (n_aug_ + lambda_);
+  }
+
+
+  if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    x_ << meas_package.raw_measurements_(0), meas_package.raw_measurements_(1), 0, 0, 0;
+    if (fabs(x_(0)) < EPS and fabs(x_(1)) < EPS){
+      x_(0) = EPS;
+      x_(1) = EPS;
+    }
+  } else {
+      float rho = meas_package.raw_measurements_(0);
+      float phi = meas_package.raw_measurements_(1); 
+      float rho_dot = meas_package.raw_measurements_(2); 
+
       float px = rho * cos(phi); 
       float py = rho * sin(phi);
       float vx = rho_dot * cos(phi);
       float vy = rho_dot * sin(phi);
       float v  = sqrt(vx * vx + vy * vy);
       x_ << px, py, v, 0, 0;
-    }
-    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-      // We don't know velocities from the first measurement of the LIDAR, so, we use zeros
-      x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0, 0;
-      // Deal with the special case initialisation problems
-      if (fabs(x_(0)) < EPS and fabs(x_(1)) < EPS){
-    x_(0) = EPS;
-    x_(1) = EPS;
-    }
-    }
-    
-    // Initialize weights
-    weights_(0) = lambda_ / (lambda_ + n_aug_);
-    for (int i = 1; i < weights_.size(); i++) {
-        weights_(i) = 0.5 / (n_aug_ + lambda_);
-    }
-    
-    // Save the initiall timestamp for dt calculation
-    time_us_ = measurement_pack.timestamp_;
-    // Done initializing, no need to predict or update
+  }
+}
+
+
+void UKF::NormAng(double *ang) {
+    while (*ang > M_PI) *ang -= 2. * M_PI;
+    while (*ang < -M_PI) *ang += 2. * M_PI;
+}
+
+
+void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
+  if (!is_initialized_) {
+    time_us_ = measurement_pack.timestamp_;    
+    Init(measurement_pack);
     is_initialized_ = true;
-    //cout << "Init" << endl;
-    //cout << "x_" << x_ << endl;
     return;
   }
   
-  // Calculate the timestep between measurements in seconds
   double dt = (measurement_pack.timestamp_ - time_us_);
-  dt /= 1000000.0; // convert micros to s
+  dt /= 1000000.0;
   time_us_ = measurement_pack.timestamp_;
   Prediction(dt);
-  //cout << "predict:" << endl;
-  //cout << "x_" << endl << x_ << endl;
+
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
-    //cout << "Radar " << measurement_pack.raw_measurements_[0] << " " << measurement_pack.raw_measurements_[1] << endl;
       UpdateRadar(measurement_pack);
     }
   if (measurement_pack.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
-    //cout << "Lidar " << measurement_pack.raw_measurements_[0] << " " << measurement_pack.raw_measurements_[1] << endl;
       UpdateLidar(measurement_pack);
   }
 }
@@ -172,7 +158,7 @@ void UKF::Prediction(double delta_t) {
   // Predict sigma points
   for (int i = 0; i< n_sig_; i++)
   {
-    // Extract values for better readability
+
     double p_x = Xsig_aug(0,i);
     double p_y = Xsig_aug(1,i);
     double v = Xsig_aug(2,i);
@@ -180,7 +166,7 @@ void UKF::Prediction(double delta_t) {
     double yawd = Xsig_aug(4,i);
     double nu_a = Xsig_aug(5,i);
     double nu_yawdd = Xsig_aug(6,i);
-    // Precalculate sin and cos for optimization
+
     double sin_yaw = sin(yaw);
     double cos_yaw = cos(yaw);
     double arg = yaw + yawd*delta_t;

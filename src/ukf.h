@@ -93,6 +93,8 @@ public:
    */
   virtual ~UKF();
 
+
+  void Init(MeasurementPackage measurement_pack);
   /**
    *  Angle normalization to [-Pi, Pi]
    */
