@@ -256,7 +256,6 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   UpdateUKF(meas_package, Zsig, n_z);
 }
 
-// Universal update function
 void UKF::UpdateUKF(MeasurementPackage meas_package, MatrixXd Zsig, int n_z){
   // Mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
